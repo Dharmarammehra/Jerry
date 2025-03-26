@@ -43,7 +43,7 @@ HEROKU_API_KEY = getenv("HEROKU_API_KEY")
 
 UPSTREAM_REPO = getenv(
     "UPSTREAM_REPO",
-    "https://github.com/Devkko/Deva",
+    "https://github.com/masoom70/Jerry",
 )
 UPSTREAM_BRANCH = getenv("UPSTREAM_BRANCH", "master")
 GIT_TOKEN = getenv(
@@ -89,13 +89,13 @@ confirmer = {}
 
 
 START_IMG_URL = getenv(
-    "START_IMG_URL", "https://envs.sh/NmV.jpg"
+    "START_IMG_URL", "https://envs.sh/WJ-.jpg"
 )
 PING_IMG_URL = getenv(
-    "PING_IMG_URL", "https://telegra.ph/file/4bff7df05636d1cca7532.jpg"
+    "PING_IMG_URL", "https://envs.sh/WJ-.jpg"
 )
 PLAYLIST_IMG_URL = "https://envs.sh/_B5.jpg"
-STATS_IMG_URL = "https://envs.sh/_BK.jpg"
+STATS_IMG_URL = "https://envs.sh/WJ-.jpg"
 TELEGRAM_AUDIO_URL = "https://te.legra.ph/file/6298d377ad3eb46711644.jpg"
 TELEGRAM_VIDEO_URL = "https://te.legra.ph/file/6298d377ad3eb46711644.jpg"
 STREAM_IMG_URL = "https://te.legra.ph/file/bd995b032b6bd263e2cc9.jpg"
