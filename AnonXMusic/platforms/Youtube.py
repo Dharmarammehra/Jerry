@@ -12,10 +12,10 @@ from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from youtubesearchpython.__future__ import VideosSearch, CustomSearch
 
-from AnonXMusic.utils.database import is_on_off
-from AnonXMusic.utils.formatters import time_to_seconds
-from AnonXMusic import LOGGER
-from config import  KEY
+from AviaxMusic.utils.database import is_on_off
+from AviaxMusic.utils.formatters import time_to_seconds
+from AviaxMusic import LOGGER
+from config import KEY
 
 def cookie_txt_file():
     cookie_dir = f"{os.getcwd()}/cookies"
@@ -73,7 +73,7 @@ async def shell_cmd(cmd):
     return out.decode("utf-8")
 
 
-ERICAPI = f"http://yt.zapto.org/api/?api_key={KEY}&url=https://www.youtube.com/watch?v="
+ERICAPI = f"https://yt.zapto.org/api/?api_key={KEY}&url=https://www.youtube.com/watch?v="
 
 async def API_SONG(vid_id: str):
     video_id = vid_id.split('v=')[-1].split('&')[0]
@@ -83,8 +83,13 @@ async def API_SONG(vid_id: str):
             async with session.get(song_url) as response:
                 if response.status == 200:
                     data = await response.json()
+                    # for debugging purposes
+                    # print(f"API Response: {json.dumps(data, indent=4)}")
                     if data.get('status') == 'success':
                         download_url = data['download_link']
+                        if not download_url:
+                            print("Error: No download URL found in API response.")
+                            return None
                         download_folder = "downloads"
                         os.makedirs(download_folder, exist_ok=True)
                         file_name = download_url.split('/')[-1].split('?')[0]
@@ -100,29 +105,28 @@ async def API_SONG(vid_id: str):
                                 print("Song Downloaded From API")
                                 return file_path
                             else:
-                                print(f"Failed to download the file. Status code: {file_response.status}")
+                                print(f"Failed to download the file. Status code: {file_response.status} {file_response}")
                 else:
                     print(f"Failed to retrieve data. Status code: {response.status}")
     except Exception as e:
         print(f"API failed, falling back to yt_dlp: {e}")
-    
-    try:
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": f"downloads/{vid_id}.mp3",
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-            "quiet": True,
- "cookiefile": cookie_txt_file(), 
-            "no_warnings": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as x:
-            info = x.extract_info(f"https://www.youtube.com/watch?v={vid_id}", download=True)
-            print(f"Downloaded from cookies")
-            return info['url']
-    except Exception as e:
-        print(f"yt_dlp fallback also failed: {e}")
-        return None
+        try:
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "outtmpl": f"downloads/{vid_id}.mp3",
+                "geo_bypass": True,
+                "nocheckcertificate": True,
+                "quiet": True,
+                "cookiefile": cookie_txt_file(), 
+                "no_warnings": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as x:
+                info = x.extract_info(f"https://www.youtube.com/watch?v={vid_id}", download=True)
+                print(f"Downloaded from cookies")
+                return info['url']
+        except Exception as e:
+            print(f"yt_dlp fallback also failed: {e}")
+            return None
 
 class YouTubeAPI:
     def __init__(self):
@@ -386,9 +390,8 @@ class YouTubeAPI:
             x = yt_dlp.YoutubeDL(ydl_opts)
             info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
-            if os.path.exists(xyz):
-                return xyz
-            x.download([link])
+            if not os.path.exists(xyz):
+                return None  # If the file doesn't exist, return None
             return xyz
 
         def song_video_dl():
@@ -461,14 +464,20 @@ class YouTubeAPI:
                     file_size = await check_file_size(link)
                     if not file_size:
                         print("None file Size")
-                        return
+                        return "Error: File size check failed."
                     total_size_mb = file_size / (1024 * 1024)
                     if total_size_mb > 250:
                         print(f"File size {total_size_mb:.2f} MB exceeds the 250MB limit.")
-                        return None
+                        return "Error: File size exceeds limit."
                     direct = True
                     downloaded_file = await loop.run_in_executor(None, video_dl)
         else:
             direct = True
             downloaded_file = await audio_dl(vid_id)
+
+        if downloaded_file is None:
+            print("Error: Download failed. 1")
+            return "Error: Download failed"
+
         return downloaded_file, direct
+
