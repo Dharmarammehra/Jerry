@@ -87,6 +87,10 @@ votemode = {}
 autoclean = []
 confirmer = {}
 
+API_URL = getenv("API_URL")
+API_KEY = getenv("API_KEY")
+
+
 
 START_IMG_URL = getenv(
     "START_IMG_URL", "https://envs.sh/WJ-.jpg"
