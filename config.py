@@ -16,9 +16,6 @@ BOT_TOKEN = getenv("BOT_TOKEN")
 # Get your mongo url from cloud.mongodb.com
 MONGO_DB_URI = getenv("MONGO_DB_URI", None)
 
-# Vars For API End Pont.
-YTPROXY_URL = getenv("YTPROXY_URL", 'http://tubed.okflix.top') ## E.G https://yt.okflix.
-YT_API_KEY = "freekey15052025"
 
 
 DURATION_LIMIT_MIN = int(getenv("DURATION_LIMIT", 600))
