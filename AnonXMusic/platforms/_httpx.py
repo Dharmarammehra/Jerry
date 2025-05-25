@@ -14,9 +14,8 @@ from urllib.parse import unquote
 import aiofiles
 import httpx
 
-from src import config
-from src.logger import LOGGER
-
+import config
+from AnonXMusic.logging import LOGGER
 
 @dataclass
 class DownloadResult:
@@ -26,7 +25,7 @@ class DownloadResult:
 
 
 class HttpxClient:
-    DEFAULT_TIMEOUT = 60
+    DEFAULT_TIMEOUT = 120
     DEFAULT_DOWNLOAD_TIMEOUT = 180
     CHUNK_SIZE = 8192
     MAX_RETRIES = 2
@@ -56,7 +55,7 @@ class HttpxClient:
         try:
             await self._session.aclose()
         except Exception as e:
-            LOGGER.error("Error closing HTTP session: %s", repr(e))
+            LOGGER(__name__).error("Error closing HTTP session: %s", repr(e))
 
     @staticmethod
     def _get_headers(url: str, base_headers: dict[str, str]) -> dict[str, str]:
@@ -111,12 +110,12 @@ class HttpxClient:
                         await f.write(chunk)
 
             duration = time.monotonic() - start
-            LOGGER.debug("Downloaded file to %s in %.2fs", path, duration)
+            LOGGER(__name__).debug("Downloaded file to %s in %.2fs", path, duration)
             return DownloadResult(success=True, file_path=path)
 
         except Exception as e:
             error_msg = self._handle_http_error(e, url)
-            LOGGER.error(error_msg)
+            LOGGER(__name__).error(error_msg)
             return DownloadResult(success=False, error=error_msg)
 
     async def make_request(
@@ -127,7 +126,7 @@ class HttpxClient:
         **kwargs: Any,
     ) -> Optional[dict[str, Any]]:
         if not url:
-            LOGGER.warning("Empty URL provided")
+            LOGGER(__name__).warning("Empty URL provided")
             return None
 
         headers = self._get_headers(url, kwargs.pop("headers", {}))
@@ -138,42 +137,42 @@ class HttpxClient:
                 response = await self._session.get(url, headers=headers, **kwargs)
                 response.raise_for_status()
                 duration = time.monotonic() - start
-                LOGGER.debug("Request to %s succeeded in %.2fs", url, duration)
+                LOGGER(__name__).debug("Request to %s succeeded in %.2fs", url, duration)
                 return response.json()
 
             except httpx.TooManyRedirects as e:
                 error_msg = f"Redirect loop for {url}: {repr(e)}"
-                LOGGER.warning(error_msg)
+                LOGGER(__name__).warning(error_msg)
                 if attempt == max_retries - 1:
-                    LOGGER.error(error_msg)
+                    LOGGER(__name__).error(error_msg)
                     return None
 
             except httpx.HTTPStatusError as e:
                 body = e.response.text if e.response else "No response"
                 error_msg = f"HTTP error {e.response.status_code} for {url}. Body: {body}"
-                LOGGER.warning(error_msg)
+                LOGGER(__name__).warning(error_msg)
                 if attempt == max_retries - 1:
-                    LOGGER.error(error_msg)
+                    LOGGER(__name__).error(error_msg)
                     return None
 
             except httpx.RequestError as e:
                 error_msg = f"Request failed for {url}: {repr(e)}"
-                LOGGER.warning(error_msg)
+                LOGGER(__name__).warning(error_msg)
                 if attempt == max_retries - 1:
-                    LOGGER.error(error_msg)
+                    LOGGER(__name__).error(error_msg)
                     return None
 
             except ValueError as e:
-                LOGGER.error("Invalid JSON response from %s: %s", url, repr(e))
+                LOGGER(__name__).error("Invalid JSON response from %s: %s", url, repr(e))
                 return None
 
             except Exception as e:
-                LOGGER.error("Unexpected error for %s: %s", url, repr(e))
+                LOGGER(__name__).error("Unexpected error for %s: %s", url, repr(e))
                 return None
 
             await asyncio.sleep(backoff_factor * (2 ** attempt))
 
-        LOGGER.error("All retries failed for URL: %s", url)
+        LOGGER(__name__).error("All retries failed for URL: %s", url)
         return None
 
     @staticmethod
