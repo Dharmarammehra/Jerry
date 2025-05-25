@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Union, Optional
 
 import yt_dlp
+from pyrogram import errors
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 from youtubesearchpython.__future__ import VideosSearch
@@ -16,44 +17,7 @@ from AnonXMusic.utils.database import is_on_off
 from AnonXMusic.utils.formatters import time_to_seconds
 from config import API_URL, API_KEY
 
-DOWNLOADS_DIR = "downloads"
-
 class YouTubeUtils:
-    """Utility class for YouTube-related operations."""
-    # Compile regex patterns once at class level
-    YOUTUBE_VIDEO_PATTERN = re.compile(
-        r"^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com|youtu\.be)/"
-        r"(?:watch\?v=|embed/|v/|shorts/)?([\w-]{11})(?:\?|&|$)",
-        re.IGNORECASE,
-    )
-
-    @staticmethod
-    def clean_query(query: str) -> str:
-        """Clean the query by removing unnecessary parameters."""
-        return query.split("&")[0].split("#")[0].strip()
-
-    @staticmethod
-    def _extract_video_id(url: str) -> Optional[str]:
-        """Extract video ID from various YouTube URL formats."""
-        if match := YouTubeUtils.YOUTUBE_VIDEO_PATTERN.match(url):
-            return match.group(1)
-        return None
-
-    @staticmethod
-    async def normalize_youtube_url(url: str) -> str:
-        """Normalize different YouTube URL formats to standard watch URL."""
-        # Handle youtu.be short links
-        if "youtu.be/" in url:
-            video_id = url.split("youtu.be/")[1].partition("?")[0].partition("#")[0]
-            return f"https://www.youtube.com/watch?v={video_id}"
-
-        # Handle YouTube shorts
-        if "youtube.com/shorts/" in url:
-            video_id = url.split("youtube.com/shorts/")[1].split("?")[0]
-            return f"https://www.youtube.com/watch?v={video_id}"
-
-        return url
-
     @staticmethod
     def get_cookie_file() -> Optional[str]:
         """Get a random cookie file from the 'cookies' directory."""
@@ -81,21 +45,33 @@ class YouTubeUtils:
         """
         Download audio using the API.
         """
-        if API_URL is None or API_KEY is None or video_id is None:
+        if API_URL is None or API_KEY is None:
             return None
-
-        if video_id.startswith("https://") or video_id.startswith("http://"):
-            url = await YouTubeUtils.normalize_youtube_url(YouTubeUtils.clean_query(video_id))
-            video_id = YouTubeUtils._extract_video_id(url=url)
 
         if video_id is None:
-            LOGGER(__name__).warning("Failed to extract video ID from URL: %s", video_id)
+            LOGGER(__name__).warning("Video ID is None")
             return None
 
-        download_path = Path(DOWNLOADS_DIR) / f"{video_id}.webm"
-        client = HttpxClient()
-        dl = await client.download_file(f"{API_URL}/yt?id={video_id}", download_path)
-        return dl.file_path if dl.success else None
+        from AnonXMusic import app
+        if public_url := await HttpxClient().make_request(f"{API_URL}/yt?id={video_id}"):
+            dl_url = public_url.get("results")
+            if not dl_url:
+                LOGGER(__name__).error(f"Response from API is empty")
+                return None
+            try:
+                msg = await app.get_messages(message_ids=dl_url)
+                if not msg:
+                    LOGGER(__name__).error("Message not found in pyrogram channel")
+                    return None
+                path = await msg.download()
+                return path
+            except errors.FloodWait as e:
+                await asyncio.sleep(e.value+1)
+                return await YouTubeUtils.download_with_api(video_id)
+            except Exception as e:
+                LOGGER(__name__).error(f"Error getting message from pyrogram channel: {e}")
+                return None
+        return None
 
 async def shell_cmd(cmd):
     proc = await asyncio.create_subprocess_shell(
